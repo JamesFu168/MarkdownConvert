@@ -1,0 +1,536 @@
+{
+  "$defs": {
+    "ConcentrationField": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConcentrationValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "found",
+            "not_reported",
+            "no_data",
+            "not_applicable",
+            "unreadable",
+            "conflict"
+          ],
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object",
+      "required": [
+        "value",
+        "raw_text",
+        "status",
+        "evidence"
+      ]
+    },
+    "ConcentrationValue": {
+      "additionalProperties": false,
+      "properties": {
+        "comparator": {
+          "anyOf": [
+            {
+              "enum": [
+                "eq",
+                "lt",
+                "lte",
+                "gt",
+                "gte",
+                "approx",
+                "range"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "eq, lt, lte, gt, gte, approx or range"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Lower bound (or the single value for eq/approx/gt/gte)"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Upper bound (or the single value for lt/lte)"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "e.g. '%', 'ppm', 'g/L'"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "e.g. 'w/w', 'v/v' when stated"
+        }
+      },
+      "type": "object",
+      "required": [
+        "comparator",
+        "min",
+        "max",
+        "unit",
+        "basis"
+      ]
+    },
+    "DocumentInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "product_name": {
+          "$ref": "#/$defs/TextField"
+        },
+        "revision_date": {
+          "$ref": "#/$defs/TextField",
+          "description": "value as ISO date YYYY-MM-DD when unambiguous"
+        },
+        "supplier_name": {
+          "$ref": "#/$defs/TextField"
+        }
+      },
+      "type": "object",
+      "required": [
+        "product_name",
+        "revision_date",
+        "supplier_name"
+      ]
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "Where a value came from. Unknown locators are null; the model must not guess pages.",
+      "properties": {
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "SDS section number or heading, e.g. '3' or 'Section 9'"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "1-based PDF page if verifiable, else null"
+        },
+        "block_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Block id given in the model input, e.g. 'b0042'"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Verbatim quote copied from the document"
+        }
+      },
+      "type": "object",
+      "required": [
+        "section",
+        "page",
+        "block_id",
+        "quote"
+      ]
+    },
+    "FlashPointField": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FlashPointValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "found",
+            "not_reported",
+            "no_data",
+            "not_applicable",
+            "unreadable",
+            "conflict"
+          ],
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object",
+      "required": [
+        "value",
+        "raw_text",
+        "status",
+        "evidence"
+      ]
+    },
+    "FlashPointValue": {
+      "additionalProperties": false,
+      "properties": {
+        "comparator": {
+          "anyOf": [
+            {
+              "enum": [
+                "eq",
+                "lt",
+                "lte",
+                "gt",
+                "gte",
+                "approx",
+                "range"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "enum": [
+                "C",
+                "F"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "C for °C, F for °F"
+        },
+        "conditions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Test method / cup type if stated, verbatim"
+        }
+      },
+      "type": "object",
+      "required": [
+        "comparator",
+        "min",
+        "max",
+        "unit",
+        "conditions"
+      ]
+    },
+    "HazardInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "classifications": {
+          "$ref": "#/$defs/StringListField"
+        },
+        "signal_word": {
+          "$ref": "#/$defs/TextField"
+        },
+        "h_codes": {
+          "$ref": "#/$defs/StringListField",
+          "description": "Only codes explicitly printed, e.g. H225"
+        },
+        "p_codes": {
+          "$ref": "#/$defs/StringListField",
+          "description": "Only codes explicitly printed, e.g. P210"
+        }
+      },
+      "type": "object",
+      "required": [
+        "classifications",
+        "signal_word",
+        "h_codes",
+        "p_codes"
+      ]
+    },
+    "Ingredient": {
+      "additionalProperties": false,
+      "description": "One ingredient row. Name, CAS numbers and concentration must stay paired.",
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/TextField"
+        },
+        "cas_numbers": {
+          "$ref": "#/$defs/StringListField"
+        },
+        "concentration": {
+          "$ref": "#/$defs/ConcentrationField"
+        }
+      },
+      "type": "object",
+      "required": [
+        "name",
+        "cas_numbers",
+        "concentration"
+      ]
+    },
+    "PhysicalInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "flash_point": {
+          "$ref": "#/$defs/FlashPointField"
+        }
+      },
+      "type": "object",
+      "required": [
+        "flash_point"
+      ]
+    },
+    "StringListField": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "description": "Normalised items; empty when none",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "raw_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "found",
+            "not_reported",
+            "no_data",
+            "not_applicable",
+            "unreadable",
+            "conflict"
+          ],
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object",
+      "required": [
+        "value",
+        "raw_text",
+        "status",
+        "evidence"
+      ]
+    },
+    "TextField": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Normalised value or null"
+        },
+        "raw_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Verbatim text from the document"
+        },
+        "status": {
+          "enum": [
+            "found",
+            "not_reported",
+            "no_data",
+            "not_applicable",
+            "unreadable",
+            "conflict"
+          ],
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object",
+      "required": [
+        "value",
+        "raw_text",
+        "status",
+        "evidence"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "pilot-v1"
+      ]
+    },
+    "document": {
+      "$ref": "#/$defs/DocumentInfo"
+    },
+    "ingredients": {
+      "items": {
+        "$ref": "#/$defs/Ingredient"
+      },
+      "type": "array"
+    },
+    "hazards": {
+      "$ref": "#/$defs/HazardInfo"
+    },
+    "physical": {
+      "$ref": "#/$defs/PhysicalInfo"
+    },
+    "extraction_notes": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Short notes about ambiguity; never instructions"
+    }
+  },
+  "type": "object",
+  "required": [
+    "schema_version",
+    "document",
+    "ingredients",
+    "hazards",
+    "physical",
+    "extraction_notes"
+  ],
+  "title": "SdsExtraction"
+}

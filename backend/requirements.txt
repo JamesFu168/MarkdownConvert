@@ -1,0 +1,11 @@
+# Runtime dependencies for the Python Azure Functions app (Python 3.12).
+# Full transitive lock: requirements.lock.txt (generated with uv pip compile).
+azure-functions==1.25.0
+openai==3.24.0
+markitdown[pdf,docx]==0.1.8
+azure-storage-blob==12.31.0
+azure-data-tables==12.7.0
+azure-storage-queue==12.18.0
+pydantic==2.13.5
+pypdf==6.19.0
+azure-identity==1.26.0

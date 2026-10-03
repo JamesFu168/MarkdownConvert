@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SDS pilot-v1 gold record (human reviewed)",
+  "type": "object",
+  "required": ["document_sha256", "schema_version", "status", "fields", "sets", "ingredients"],
+  "properties": {
+    "_instructions": {"type": "string"},
+    "document_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "file_name": {"type": "string"},
+    "schema_version": {"const": "pilot-v1"},
+    "status": {"enum": ["draft", "final"]},
+    "reviewer": {"type": "string"},
+    "reviewed_at": {"type": "string", "description": "ISO date; empty while draft"},
+    "fields": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {"enum": ["found", "not_reported", "no_data", "not_applicable", "unreadable", ""]},
+          "value": {},
+          "accepted_values": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "sets": {
+      "type": "object",
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    },
+    "ingredients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "cas", "concentration"],
+        "properties": {
+          "name": {"type": "string"},
+          "accepted_names": {"type": "array", "items": {"type": "string"}},
+          "cas": {"type": "array", "items": {"type": "string"}},
+          "concentration": {
+            "type": "object",
+            "properties": {
+              "comparator": {"enum": ["eq", "lt", "lte", "gt", "gte", "approx", "range", ""]},
+              "min": {"type": ["number", "null"]},
+              "max": {"type": ["number", "null"]},
+              "unit": {"type": ["string", "null"]},
+              "basis": {"type": ["string", "null"]}
+            }
+          }
+        }
+      }
+    },
+    "notes": {"type": "string"}
+  }
+}

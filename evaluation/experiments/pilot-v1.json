@@ -1,0 +1,16 @@
+{
+  "experiment_config_version": "pilot-v1",
+  "description": "A/B/C/D: input strategy x model role. Target fields, schema (pilot-v1), prompt (extraction_v1), max_output_tokens and PDF detail are identical across arms.",
+  "arms": [
+    {"arm": "A", "input_strategy": "original_document", "model_role": "baseline", "description": "Original PDF/DOCX -> baseline model (new direct-document baseline; NOT a reproduction of the existing 85%)"},
+    {"arm": "B", "input_strategy": "markdown", "model_role": "baseline", "description": "MarkItDown full text -> baseline model (isolates pre-processing effect)"},
+    {"arm": "C", "input_strategy": "original_document", "model_role": "candidate", "description": "Original PDF/DOCX -> candidate lower-cost model (marked unsupported if the model rejects file input)"},
+    {"arm": "D", "input_strategy": "markdown", "model_role": "candidate", "description": "MarkItDown full text -> candidate model (combined effect)"}
+  ],
+  "exploratory_targets": {
+    "_comment": "Proposal only; not an accepted acceptance criterion and not a performance guarantee.",
+    "valued_field_accuracy_min": 0.95,
+    "cost_reduction_vs_A_min": 0.30,
+    "critical_field_accuracy_no_regression": true
+  }
+}

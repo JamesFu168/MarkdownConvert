@@ -1,0 +1,13 @@
+using './main.bicep'
+
+param baseName = 'sdspoc'
+param location = 'eastasia' // confirm with: az functionapp list-flexconsumption-locations -o table
+param maximumInstanceCount = 1
+param instanceMemoryMB = 2048
+param corsAllowedOrigins = ['https://<your-static-web-app>.azurestaticapps.net']
+param extractionProvider = 'mock' // switch to 'openai' only after the key and both model names are set
+param openAiApiKey = readEnvironmentVariable('OPENAI_API_KEY', '')
+param openAiModelBaseline = readEnvironmentVariable('OPENAI_MODEL_BASELINE', '')
+param openAiModelCandidate = readEnvironmentVariable('OPENAI_MODEL_CANDIDATE', '')
+param entraClientId = '' // App registration (client) id for the API; empty disables Easy Auth (NOT recommended)
+param entraAllowedAudiences = [] // e.g. ['api://<entraClientId>']

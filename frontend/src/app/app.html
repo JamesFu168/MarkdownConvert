@@ -1,0 +1,23 @@
+<header class="topbar">
+  <div class="brand">SDS 解析 POC</div>
+  <nav>
+    <a routerLink="/upload" routerLinkActive="active">上傳</a>
+    <a routerLink="/jobs" routerLinkActive="active">任務列表</a>
+    <a routerLink="/compare" routerLinkActive="active">A/B/C/D 比較</a>
+  </nav>
+  <div class="mode">
+    @if (config(); as c) {
+      @if (c.is_test_double) {
+        <span class="badge badge-mock" title="EXTRACTION_PROVIDER=mock">測試替身，未呼叫真實模型</span>
+      } @else {
+        <span class="badge badge-real">真實模型：{{ c.provider }}</span>
+      }
+      <span class="muted">身分：{{ c.owner_id }}（{{ c.auth_mode }}）</span>
+    } @else if (configError()) {
+      <span class="badge badge-error">{{ configError() }}</span>
+    }
+  </div>
+</header>
+<main class="content">
+  <router-outlet />
+</main>

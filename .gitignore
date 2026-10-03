@@ -1,0 +1,39 @@
+# secrets / local settings
+.env
+backend/local.settings.json
+*.local.json
+
+# python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# node / angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+
+# real test documents, gold, batch results and API responses are never committed
+data/
+!data/.gitkeep
+evaluation/output/
+evaluation/gold/*.json
+!evaluation/gold/README.md
+
+# azurite local storage
+__azurite_db*__.json
+__blobstorage__/
+__queuestorage__/
+.azurite/
+
+# azure functions core tools
+backend/.python_packages/
+bin/
+obj/
+
+# bicep params with secrets
+infra/main.bicepparam

@@ -1,0 +1,36 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AzureWebJobsFeatureFlags": "EnableWorkerIndexing",
+    "PYTHON_ENABLE_WORKER_EXTENSIONS": "0",
+    "PYTHON_THREADPOOL_THREAD_COUNT": "4",
+
+    "EXTRACTION_PROVIDER": "mock",
+    "MOCK_PROVIDER_BEHAVIOR": "success",
+    "OPENAI_API_KEY": "",
+    "OPENAI_MODEL_BASELINE": "",
+    "OPENAI_MODEL_CANDIDATE": "",
+    "OPENAI_TIMEOUT_SECONDS": "180",
+    "OPENAI_MAX_ATTEMPTS": "2",
+    "OPENAI_FILE_DETAIL": "",
+    "OPENAI_MAX_OUTPUT_TOKENS": "8192",
+
+    "MAX_UPLOAD_BYTES": "20971520",
+    "PROCESSING_LEASE_SECONDS": "600",
+    "MIN_TEXT_CHARS_PER_PAGE": "40",
+    "SDS_BLOB_CONTAINER": "sds",
+    "SDS_QUEUE_NAME": "sds-jobs",
+
+    "AUTH_MODE": "local_dev",
+    "LOCAL_DEV_USER_ID": "local-dev-user",
+    "TEST_SDS_DIR": "",
+    "DOCINTEL_ENDPOINT": ""
+  },
+  "Host": {
+    "LocalHttpPort": 7071,
+    "CORS": "http://localhost:4200",
+    "CORSCredentials": false
+  }
+}

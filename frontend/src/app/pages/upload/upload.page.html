@@ -1,0 +1,70 @@
+<h1>上傳 SDS 文件</h1>
+
+<div class="card">
+  @if (config(); as c) {
+    <p class="muted">接受 PDF 與 DOCX（具可抽取文字層），上限 {{ formatBytes(c.max_upload_bytes) }}。掃描檔會被標記為「需 OCR」而不會偽裝成功。</p>
+    @if (c.is_test_double) {
+      <p class="note">目前後端使用<strong>測試替身</strong>（EXTRACTION_PROVIDER=mock）：流程可驗證，但抽取結果不代表任何模型效果，也不列入成效統計。</p>
+    }
+    <div class="inline-form">
+      <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" (change)="onFile($event)" />
+      @if (file(); as f) {
+        <span>{{ f.name }}（{{ formatBytes(f.size) }}）</span>
+      }
+    </div>
+    @if (fileProblem(); as p) {
+      <div class="error-box">{{ p }}</div>
+    }
+
+    <h3>實驗組</h3>
+    <table>
+      <thead><tr><th></th><th>組別</th><th>輸入</th><th>模型</th><th>說明</th></tr></thead>
+      <tbody>
+        @for (arm of c.allowed_arms; track arm.arm) {
+          <tr>
+            <td><input type="checkbox" [checked]="selectedArms().has(arm.arm)" (change)="toggleArm(arm.arm, $any($event.target).checked)" /></td>
+            <td><strong>{{ arm.arm }}</strong></td>
+            <td>{{ strategyLabels[arm.input_strategy] }}</td>
+            <td>{{ arm.model_role === 'baseline' ? '現行模型' : '候選模型' }}<span class="muted"> · {{ arm.model_role === 'baseline' ? c.models.baseline : c.models.candidate }}</span></td>
+            <td class="muted">{{ arm.description }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <div class="inline-form" style="margin-top: 1rem">
+      <label>實驗 ID（選填，供比較頁彙總）<input [(ngModel)]="experimentId" placeholder="例如 pilot-2026-10" /></label>
+      <button (click)="submit()" [disabled]="!canSubmit()">{{ busy() ? '上傳中…' : '上傳並建立任務' }}</button>
+    </div>
+  } @else if (!error()) {
+    <p class="muted">載入設定中…</p>
+  }
+
+  @if (error(); as e) {
+    <div class="error-box">{{ e }}</div>
+  }
+</div>
+
+@if (result(); as r) {
+  <div class="card">
+    <h2>已建立任務（HTTP 202，解析在背景佇列執行）</h2>
+    @if (r.idempotent_replay) {
+      <p class="note">此為重複請求，回傳原任務。</p>
+    }
+    @if (r.error) {
+      <p class="note">{{ r.error.message }}</p>
+    }
+    <table>
+      <thead><tr><th>組別</th><th>狀態</th><th>任務</th></tr></thead>
+      <tbody>
+        @for (j of r.jobs; track j.job_id) {
+          <tr>
+            <td>{{ j.arm }}</td>
+            <td>{{ statusLabel(j.status) }}</td>
+            <td><a [routerLink]="['/jobs', j.job_id]">{{ j.job_id }}</a></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

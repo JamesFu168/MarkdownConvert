@@ -1,0 +1,129 @@
+openapi: 3.1.0
+info:
+  title: SDS Parsing POC API
+  version: 0.1.0
+  description: |
+    HTTP routes store documents and enqueue work; parsing runs in a Storage Queue trigger.
+    All responses are JSON unless noted. Errors: `{code, message, request_id, retryable, details?}`.
+    Identity: App Service Authentication (easyauth) in Azure; loopback-only `local_dev` identity locally.
+servers:
+  - url: http://localhost:7071/api
+paths:
+  /health:
+    get:
+      summary: Liveness and provider mode (anonymous)
+      responses: {"200": {description: ok}}
+  /config:
+    get:
+      summary: Allowed arms, upload limits, provider mode, poll interval
+      responses: {"200": {description: ok}}
+  /jobs:
+    post:
+      summary: Upload a PDF/DOCX and create one job per experiment arm
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema: {type: string}
+          description: Same key + same payload returns the original jobs (202, `Idempotent-Replayed: true`); same key + different payload returns 409.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+                arms: {type: string, default: "A", description: "Comma separated subset of the server-allowed arms"}
+                experiment_id: {type: string}
+      responses:
+        "202":
+          description: All runs queued
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CreateJobsResponse"}
+        "503": {description: Some runs still enqueue_pending (recoverable; resend with the same Idempotency-Key or wait for reconciliation)}
+        "400": {description: bad arm / missing file}
+        "409": {description: idempotency payload mismatch}
+        "413": {description: document too large}
+        "415": {description: unsupported format (e.g. legacy .doc)}
+        "422": {description: corrupt document}
+    get:
+      summary: List the caller's jobs (cursor pagination)
+      parameters:
+        - {in: query, name: status, schema: {$ref: "#/components/schemas/JobStatus"}}
+        - {in: query, name: cursor, schema: {type: string}}
+        - {in: query, name: limit, schema: {type: integer, default: 20, maximum: 100}}
+      responses: {"200": {description: "{items: JobView[], next_cursor}"}}
+  /jobs/{job_id}:
+    get:
+      summary: Job status, stage, timestamps, warnings, latest run and run history
+      parameters: [{in: path, name: job_id, required: true, schema: {type: string}}]
+      responses: {"200": {description: JobView}, "404": {description: not found or not owned}}
+  /jobs/{job_id}/runs/{run_id}/result:
+    get:
+      summary: Extraction result, validation findings, usage, model info, review history
+      responses:
+        "200": {description: "ready=true with result/validation/reviews, or ready=false with status=failed and error"}
+        "202": {description: "ready=false; still queued/processing"}
+  /jobs/{job_id}/runs/{run_id}/artifacts/{kind}:
+    get:
+      summary: Download an artifact (owner-checked)
+      parameters:
+        - {in: path, name: kind, required: true, schema: {enum: [original, markdown, model-input, result, validation]}}
+      responses: {"200": {description: binary/text}, "404": {description: unknown kind or not produced}}
+  /jobs/{job_id}/runs/{run_id}/review:
+    patch:
+      summary: Save a human correction as a new review version (machine result stays immutable)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_review_version, corrected]
+              properties:
+                expected_review_version: {type: integer}
+                corrected: {$ref: "./extraction-schema.pilot-v1.json"}
+                note: {type: string}
+      responses: {"200": {description: "{review_version, changed_paths}"}, "409": {description: version mismatch}, "400": {description: schema invalid}}
+  /jobs/{job_id}/retry:
+    post:
+      summary: Create a new run for a failed / needs_review job (bounded by MAX_RETRIES_PER_JOB)
+      responses: {"202": {description: new run queued}, "409": {description: not retryable or limit reached}}
+  /experiments/{experiment_id}/summary:
+    get:
+      summary: Per-arm technical completion, tokens, cost (measured/partial/unknown), timings, scoring (only with human gold)
+      responses: {"200": {description: summary}}
+  /experiments/{experiment_id}/export:
+    get:
+      summary: CSV (default, BOM, formula-injection safe) or JSON (`?format=json`) of per-run evaluation rows
+      responses: {"200": {description: csv or json}}
+  /internal/reconcile:
+    post:
+      summary: Re-enqueue enqueue_pending runs and expired processing leases (function master key required)
+      responses: {"200": {description: counts}}
+components:
+  schemas:
+    JobStatus:
+      type: string
+      enum: [enqueue_pending, queued, processing, succeeded, needs_review, failed]
+    Stage:
+      type: string
+      enum: [validate_document, convert, extract, validate_result, persist]
+    CreateJobsResponse:
+      type: object
+      properties:
+        document_id: {type: string}
+        job_id: {type: string, description: first job (compatibility)}
+        run_id: {type: string}
+        status_url: {type: string}
+        idempotent_replay: {type: boolean}
+        jobs:
+          type: array
+          items:
+            type: object
+            properties:
+              job_id: {type: string}
+              run_id: {type: string}
+              arm: {type: string}
+              status: {$ref: "#/components/schemas/JobStatus"}
+              status_url: {type: string}

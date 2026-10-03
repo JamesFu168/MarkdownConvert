@@ -1,0 +1,306 @@
+@if (job(); as j) {
+  <h1>{{ j.file_name }} <span class="muted">· 組別 {{ j.arm }}</span></h1>
+
+  <div class="card">
+    @if (run(); as r) {
+      <div class="inline-form">
+        <span [class]="statusClass(r.status)">{{ statusLabel(r.status) }}</span>
+        @if (polling()) {
+          <span class="muted">每 {{ 3 }} 秒輪詢中…（離開頁面即停止）</span>
+        }
+        @if (r.config?.is_test_double) {
+          <span class="badge badge-mock">測試替身，未呼叫真實模型</span>
+        } @else if (r.config) {
+          <span class="badge badge-real">真實模型 {{ r.config.model }}</span>
+        }
+        @if (r.config) {
+          <span class="muted">{{ strategyLabels[r.config.input_strategy] }} · prompt {{ r.config.prompt_version }} · schema {{ r.config.schema_version }}
+            @if (r.config.converter) { · {{ r.config.converter }} {{ r.config.converter_version }} }
+          </span>
+        }
+        @if (isTerminal() && r.status !== 'succeeded') {
+          <button class="secondary" (click)="retry()">重試（建立新 run）</button>
+        }
+      </div>
+      <div class="stages">
+        @for (s of r.stages; track s.stage) {
+          <span class="stage"><span [class]="statusClass(s.status)">{{ s.status }}</span> {{ stageLabels[s.stage] }} <span class="muted">{{ formatMs(s.elapsed_ms) }}</span></span>
+        }
+      </div>
+      @if (r.error) {
+        <div class="error-box">
+          <strong>{{ errorLabel(r.error.code) }}</strong> <span class="muted">({{ r.error.code }}@{{ r.error.stage }})</span><br />{{ r.error.message }}
+          @if (r.error.will_retry) { <br /><span class="muted">暫時性錯誤，佇列將重試。</span> }
+        </div>
+      }
+      @if (r.warnings.length) {
+        <p class="note">警示：{{ r.warnings.join('；') }}</p>
+      }
+      <div class="kv">
+        <span>任務 / run</span><span>{{ j.job_id }} / {{ r.run_id }}（第 {{ j.run_count }} 個 run，第 {{ r.attempt_no }} 次投遞）</span>
+        <span>建立 / 開始 / 完成</span><span>{{ r.created_at | date: 'HH:mm:ss' }} / {{ r.started_at | date: 'HH:mm:ss' }} / {{ r.finished_at | date: 'HH:mm:ss' }}</span>
+        @if (r.metrics.tokens; as t) {
+          <span>Token（真實呼叫）</span>
+          <span>
+            @if (t.real_calls > 0) { 輸入 {{ t.input }}（快取 {{ t.cached_input }}）· 輸出 {{ t.output }} · 呼叫 {{ t.real_calls }} 次 }
+            @else { <span class="muted">無真實模型呼叫（測試替身 {{ t.test_double_calls }} 次），不計入成效</span> }
+          </span>
+        }
+        @if (r.metrics.cost; as c) {
+          <span>模型費用</span>
+          <span>
+            @if (c.status === 'measured') { {{ c.measured_amount }} {{ c.currency }} }
+            @else if (c.status === 'partial') { 部分量測 {{ c.measured_amount }} {{ c.currency }}（{{ c.calls_unknown }} 次呼叫費用未知） }
+            @else { <span class="muted">未知（無價格表或無 usage；不是 0）</span> }
+          </span>
+        }
+      </div>
+    }
+    @if (error(); as e) {
+      <div class="error-box">{{ e }}</div>
+    }
+  </div>
+
+  @if (result(); as res) {
+    <div class="tabs">
+      <button [class.active]="tab() === 'fields'" (click)="tab.set('fields')">結構化欄位</button>
+      <button [class.active]="tab() === 'validation'" (click)="tab.set('validation')">驗證警示 ({{ res.validation?.findings?.length ?? 0 }})</button>
+      <button [class.active]="tab() === 'markdown'" (click)="tab.set('markdown')">Markdown 文字</button>
+      <button [class.active]="tab() === 'original'" (click)="tab.set('original'); loadOriginal()">原始文件</button>
+      <button [class.active]="tab() === 'review'" (click)="tab.set('review')">人工核對 (v{{ run()?.review_version ?? 0 }})</button>
+      <button [class.active]="tab() === 'runs'" (click)="tab.set('runs')">Run 歷史</button>
+    </div>
+
+    @if (!res.ready) {
+      <div class="card"><p class="muted">此 run 沒有可用結果（{{ statusLabel(res.status) }}）。</p></div>
+    }
+
+    @if (tab() === 'fields' && extraction(); as ex) {
+      <div class="card">
+        @if (res.is_test_double) {
+          <p class="note">以下為<strong>測試替身</strong>輸出，所有欄位皆為「無法讀取」；只用於驗證流程。</p>
+        }
+        @if (latestReview(); as rv) {
+          <p class="note">此 run 已有人工修正版本 v{{ rv.version }}（{{ rv.created_at | date: 'yyyy-MM-dd HH:mm' }}）。下方顯示的是<strong>機器抽取結果</strong>；修正內容請看「人工核對」。</p>
+        }
+        <h3>文件基本資料</h3>
+        <table>
+          @for (f of [['產品名稱', ex.document.product_name, 'document.product_name'], ['SDS 修訂日期', ex.document.revision_date, 'document.revision_date'], ['供應商', ex.document.supplier_name, 'document.supplier_name'], ['警示語', ex.hazards.signal_word, 'hazards.signal_word']]; track f[2]) {
+            <tr class="field-row">
+              <td>{{ f[0] }}</td>
+              <td>
+                <strong>{{ $any(f[1]).value ?? '—' }}</strong> <span class="badge">{{ fieldStatusLabel($any(f[1]).status) }}</span>
+                @if ($any(f[1]).raw_text) { <div class="muted">原文：{{ $any(f[1]).raw_text }}</div> }
+                <ng-container *ngTemplateOutlet="evidenceTpl; context: { $implicit: $any(f[1]).evidence, path: f[2] }" />
+              </td>
+            </tr>
+          }
+        </table>
+
+        <h3>成分（第 3 節）</h3>
+        <table>
+          <thead><tr><th>#</th><th>成分名稱</th><th>CAS No.</th><th>含量（正規化）</th><th>含量原文</th><th>來源</th></tr></thead>
+          <tbody>
+            @for (ing of ex.ingredients; track $index) {
+              <tr>
+                <td>{{ $index + 1 }}</td>
+                <td>{{ ing.name.value ?? '—' }} <span class="badge">{{ fieldStatusLabels[ing.name.status] }}</span></td>
+                <td>{{ ing.cas_numbers.value.join(', ') || '—' }} <span class="badge">{{ fieldStatusLabels[ing.cas_numbers.status] }}</span></td>
+                <td>{{ formatNumeric(ing.concentration.value) || '—' }}@if (ing.concentration.value?.basis) { ({{ ing.concentration.value?.basis }}) }</td>
+                <td class="muted">{{ ing.concentration.raw_text ?? '—' }}</td>
+                <td><ng-container *ngTemplateOutlet="evidenceTpl; context: { $implicit: ing.concentration.evidence.concat(ing.cas_numbers.evidence), path: 'ingredients[' + $index + ']' }" /></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="muted">沒有成分列</td></tr>
+            }
+          </tbody>
+        </table>
+
+        <h3>危害（第 2 節）</h3>
+        <table>
+          @for (f of [['危害分類', ex.hazards.classifications, 'hazards.classifications'], ['H codes', ex.hazards.h_codes, 'hazards.h_codes'], ['P codes', ex.hazards.p_codes, 'hazards.p_codes']]; track f[2]) {
+            <tr class="field-row">
+              <td>{{ f[0] }}</td>
+              <td>
+                {{ $any(f[1]).value.join('; ') || '—' }} <span class="badge">{{ fieldStatusLabel($any(f[1]).status) }}</span>
+                <ng-container *ngTemplateOutlet="evidenceTpl; context: { $implicit: $any(f[1]).evidence, path: f[2] }" />
+              </td>
+            </tr>
+          }
+        </table>
+
+        <h3>物性（第 9 節）</h3>
+        <table>
+          <tr class="field-row">
+            <td>閃火點</td>
+            <td>
+              <strong>{{ formatNumeric(ex.physical.flash_point.value) || '—' }}</strong>
+              @if (ex.physical.flash_point.value?.unit) { °{{ ex.physical.flash_point.value?.unit }} }
+              @if (ex.physical.flash_point.value?.conditions) { <span class="muted">（{{ ex.physical.flash_point.value?.conditions }}）</span> }
+              <span class="badge">{{ fieldStatusLabels[ex.physical.flash_point.status] }}</span>
+              @if (ex.physical.flash_point.raw_text) { <div class="muted">原文：{{ ex.physical.flash_point.raw_text }}</div> }
+              <ng-container *ngTemplateOutlet="evidenceTpl; context: { $implicit: ex.physical.flash_point.evidence, path: 'physical.flash_point' }" />
+            </td>
+          </tr>
+        </table>
+        @if (ex.extraction_notes) { <p class="muted">模型備註（僅供參考，不作判斷依據）：{{ ex.extraction_notes }}</p> }
+        <p>
+          <button class="secondary" (click)="downloadArtifact('result')">下載原始 JSON</button>
+          <button class="secondary" (click)="downloadArtifact('validation')">下載驗證 JSON</button>
+          <button class="secondary" (click)="downloadArtifact('model-input')">下載 model input</button>
+        </p>
+      </div>
+    }
+
+    @if (tab() === 'validation' && res.validation; as v) {
+      <div class="card">
+        <p>Schema 通過：{{ v.schema_valid ? '是' : '否' }} · 需人工核對：{{ v.review_required ? '是' : '否' }}<span class="muted">（Schema 通過不代表內容正確）</span></p>
+        <table>
+          <thead><tr><th>嚴重度</th><th>代碼</th><th>欄位</th><th>說明</th></tr></thead>
+          <tbody>
+            @for (f of v.findings; track $index) {
+              <tr>
+                <td><span [class]="f.severity === 'error' ? 'badge badge-error' : f.severity === 'warning' ? 'badge badge-warn' : 'badge badge-info'">{{ f.severity }}</span></td>
+                <td>{{ f.code }}</td><td>{{ f.path }}</td><td>{{ f.message }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="muted">沒有驗證警示</td></tr>
+            }
+          </tbody>
+        </table>
+        <h3>來源引用核對</h3>
+        <table>
+          <thead><tr><th>欄位</th><th>結果</th><th>命中區塊 / 頁</th></tr></thead>
+          <tbody>
+            @for (c of v.evidence_checks; track $index) {
+              <tr><td>{{ c.path }}</td><td>{{ c.status }}</td><td class="muted">{{ c.matched_block_id ?? '' }} {{ c.matched_page ?? '' }}</td></tr>
+            } @empty {
+              <tr><td colspan="3" class="muted">沒有引用</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if (tab() === 'markdown') {
+      <div class="card">
+        @if (markdown(); as md) {
+          <p class="muted">以純文字呈現（不渲染 HTML，不載入遠端資源）。<button class="secondary" (click)="downloadArtifact('markdown')">下載 .md</button></p>
+          <pre class="mono">{{ md }}</pre>
+        } @else {
+          <p class="muted">此 run 沒有 Markdown（原始文件策略不做轉換），或尚未載入。</p>
+        }
+      </div>
+    }
+
+    @if (tab() === 'original') {
+      <div class="card">
+        @if (pdfUrl(); as u) {
+          <iframe class="pdf" [src]="u" title="原始 PDF"></iframe>
+        } @else {
+          <p class="muted">PDF 會在此預覽；DOCX 會直接下載。<button class="secondary" (click)="loadOriginal()">載入／下載原始文件</button></p>
+        }
+      </div>
+    }
+
+    @if (tab() === 'review' && draft(); as d) {
+      <div class="card">
+        <p class="note">人工修正會另存為新版本（目前 v{{ run()?.review_version ?? 0 }}），機器抽取結果不會被覆寫，修正也不會自動成為 gold。</p>
+        <table class="review-grid">
+          <tr><td>產品名稱</td><td><input [ngModel]="d.document.product_name.value" (ngModelChange)="setScalar('product_name', $event)" /></td></tr>
+          <tr><td>SDS 修訂日期（YYYY-MM-DD）</td><td><input [ngModel]="d.document.revision_date.value" (ngModelChange)="setScalar('revision_date', $event)" /></td></tr>
+          <tr><td>供應商</td><td><input [ngModel]="d.document.supplier_name.value" (ngModelChange)="setScalar('supplier_name', $event)" /></td></tr>
+          <tr><td>警示語</td><td><input [ngModel]="d.hazards.signal_word.value" (ngModelChange)="setScalar('signal_word', $event)" /></td></tr>
+          <tr><td>危害分類（; 分隔）</td><td><input [ngModel]="d.hazards.classifications.value.join('; ')" (ngModelChange)="setList('classifications', $event)" /></td></tr>
+          <tr><td>H codes</td><td><input [ngModel]="d.hazards.h_codes.value.join(', ')" (ngModelChange)="setList('h_codes', $event)" /></td></tr>
+          <tr><td>P codes</td><td><input [ngModel]="d.hazards.p_codes.value.join(', ')" (ngModelChange)="setList('p_codes', $event)" /></td></tr>
+          <tr><td>閃火點原文</td><td><input [ngModel]="d.physical.flash_point.raw_text" (ngModelChange)="setFlashPointRaw($event)" /></td></tr>
+          <tr><td>閃火點正規化</td><td class="inline-form">
+            <select [ngModel]="d.physical.flash_point.value?.comparator ?? ''" (ngModelChange)="setFlashPointNumeric('comparator', $event)">
+              <option value="">(無)</option><option value="eq">=</option><option value="lt">&lt;</option><option value="lte">≤</option><option value="gt">&gt;</option><option value="gte">≥</option><option value="approx">≈</option><option value="range">範圍</option>
+            </select>
+            <input type="number" placeholder="min" [ngModel]="d.physical.flash_point.value?.min" (ngModelChange)="setFlashPointNumeric('min', $event)" style="width: 100px" />
+            <input type="number" placeholder="max" [ngModel]="d.physical.flash_point.value?.max" (ngModelChange)="setFlashPointNumeric('max', $event)" style="width: 100px" />
+            <select [ngModel]="d.physical.flash_point.value?.unit ?? ''" (ngModelChange)="setFlashPointNumeric('unit', $event)"><option value="">單位</option><option value="C">°C</option><option value="F">°F</option></select>
+          </td></tr>
+        </table>
+        <h3>成分列</h3>
+        <table class="review-grid">
+          <thead><tr><th>名稱</th><th>CAS（逗號分隔）</th><th>含量原文</th><th>比較</th><th>min</th><th>max</th><th>單位</th><th></th></tr></thead>
+          <tbody>
+            @for (row of ingredientDrafts(); track $index) {
+              <tr>
+                <td><input [(ngModel)]="row.name" /></td>
+                <td><input [(ngModel)]="row.cas" /></td>
+                <td><input [(ngModel)]="row.conc_raw" /></td>
+                <td><select [(ngModel)]="row.comparator"><option value="">(無)</option><option value="eq">=</option><option value="lt">&lt;</option><option value="lte">≤</option><option value="gt">&gt;</option><option value="gte">≥</option><option value="approx">≈</option><option value="range">範圍</option></select></td>
+                <td><input type="number" [(ngModel)]="row.min" style="width: 90px" /></td>
+                <td><input type="number" [(ngModel)]="row.max" style="width: 90px" /></td>
+                <td><input [(ngModel)]="row.unit" style="width: 70px" /></td>
+                <td><button class="secondary" (click)="removeIngredient($index)">刪除</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <p><button class="secondary" (click)="addIngredient()">新增成分列</button></p>
+        <div class="inline-form">
+          <input [(ngModel)]="reviewNote" placeholder="修正備註（選填）" style="min-width: 320px" />
+          <button (click)="saveReview()" [disabled]="saving()">保存為 v{{ (run()?.review_version ?? 0) + 1 }}</button>
+        </div>
+        @if (saveMessage(); as m) { <p class="note">{{ m }}</p> }
+        @if (res.reviews?.length) {
+          <h3>修正歷史</h3>
+          <table>
+            <thead><tr><th>版本</th><th>時間</th><th>審核者</th><th>變更欄位數</th><th>備註</th></tr></thead>
+            <tbody>
+              @for (rv of res.reviews; track rv.version) {
+                <tr><td>v{{ rv.version }}</td><td>{{ rv.created_at | date: 'yyyy-MM-dd HH:mm:ss' }}</td><td>{{ rv.reviewer_id }}</td><td>{{ rv.changed_paths.length }}</td><td class="muted">{{ rv.note }}</td></tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+
+    @if (tab() === 'runs') {
+      <div class="card">
+        <table>
+          <thead><tr><th>run</th><th>狀態</th><th>投遞次數</th><th>前一 run</th><th>原因</th><th>模型呼叫</th><th>完成</th></tr></thead>
+          <tbody>
+            @for (r of j.runs ?? []; track r.run_id) {
+              <tr>
+                <td>{{ r.run_id }}</td><td>{{ statusLabel(r.status) }}</td><td>{{ r.attempt_no }}</td><td class="muted">{{ r.previous_run_id ?? '' }}</td><td class="muted">{{ r.retry_reason ?? '' }}</td>
+                <td>
+                  @for (c of r.model_calls; track c.attempt) {
+                    <div>#{{ c.attempt }} {{ c.model }} {{ c.success ? 'OK' : (c.error_code ?? 'error') }} {{ formatMs(c.elapsed_ms) }}
+                      @if (c.is_test_double) { <span class="badge badge-mock">替身</span> }
+                      @if (c.usage) { <span class="muted">in {{ c.usage.input_tokens }} / out {{ c.usage.output_tokens }}</span> }
+                    </div>
+                  }
+                </td>
+                <td>{{ r.finished_at | date: 'HH:mm:ss' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+} @else if (error(); as e) {
+  <div class="error-box">{{ e }}</div>
+  <p><a routerLink="/jobs">回任務列表</a></p>
+} @else {
+  <p class="muted">載入中…</p>
+}
+
+<ng-template #evidenceTpl let-evidence let-path="path">
+  @for (ev of evidence; track $index) {
+    <div class="evidence">
+      來源：@if (ev.section) { 第 {{ ev.section }} 節 } @if (ev.page) { · 頁 {{ ev.page }} } @if (ev.block_id) { · {{ ev.block_id }} }
+      @if (ev.quote) { · <q>{{ ev.quote }}</q> }
+      @for (c of evidenceChecks(path); track c.path) {
+        @if (c.path.endsWith('[' + $index + ']')) { <span class="badge" [class.badge-ok]="c.status === 'verified'" [class.badge-error]="c.status === 'not_found'" [class.badge-warn]="c.status === 'verified_elsewhere'">{{ c.status }}</span> }
+      }
+    </div>
+  }
+</ng-template>

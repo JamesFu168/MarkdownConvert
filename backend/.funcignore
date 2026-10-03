@@ -1,0 +1,13 @@
+.venv
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+tests/
+local.settings.json
+local.settings.json.example
+requirements-dev.txt
+requirements.lock.txt
+pyproject.toml
+.git*

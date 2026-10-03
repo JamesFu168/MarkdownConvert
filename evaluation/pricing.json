@@ -1,0 +1,6 @@
+{
+  "_comment": "Fill from the official OpenAI pricing page for the models named in OPENAI_MODEL_BASELINE / OPENAI_MODEL_CANDIDATE. Prices are per 1M tokens. Nothing is pre-filled on purpose: cost stays 'unknown' until this table has an entry for the model.",
+  "version": "pricing-2026-10-03-empty",
+  "currency": "USD",
+  "models": {}
+}

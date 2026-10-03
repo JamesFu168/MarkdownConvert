@@ -1,0 +1,14 @@
+# Local storage emulator (alternative to the globally installed `azurite` CLI).
+# docker compose -f infra/docker-compose.azurite.yml up -d
+services:
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.37.0
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --skipApiVersionCheck --location /data
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    volumes:
+      - azurite-data:/data
+volumes:
+  azurite-data:

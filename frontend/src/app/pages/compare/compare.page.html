@@ -1,0 +1,70 @@
+<h1>A/B/C/D 比較</h1>
+<div class="card">
+  <div class="inline-form">
+    <label>實驗 ID <input [(ngModel)]="experimentId" placeholder="上傳時填寫的 experiment_id" (keyup.enter)="load()" /></label>
+    <button (click)="load()" [disabled]="loading() || !experimentId.trim()">載入摘要</button>
+    @if (summary()) {
+      <a class="btn" [href]="exportUrl()" target="_blank" rel="noopener">匯出 CSV</a>
+    }
+  </div>
+  @if (error(); as e) { <div class="error-box">{{ e }}</div> }
+</div>
+
+@if (summary(); as s) {
+  <div class="card">
+    <h2>各組摘要（{{ s.documents }} 份文件）</h2>
+    <table>
+      <thead>
+        <tr><th>指標</th>@for (a of arms(); track a) { <th>{{ a }}</th> }</tr>
+      </thead>
+      <tbody>
+        <tr><td>收到文件</td>@for (a of arms(); track a) { <td>{{ s.arms[a].documents_received }}</td> }</tr>
+        <tr><td>技術完成率</td>@for (a of arms(); track a) { <td>{{ s.arms[a].technically_completed }}/{{ s.arms[a].documents_received }}@if (s.arms[a].technical_completion_rate !== null) { ({{ s.arms[a].technical_completion_rate | percent: '1.0-1' }}) }</td> }</tr>
+        <tr><td>失敗（需 OCR / 不支援檔案輸入）</td>@for (a of arms(); track a) { <td>{{ s.arms[a].failed }}（{{ s.arms[a].failed_needs_ocr }} / {{ s.arms[a].failed_unsupported_file_input }}）</td> }</tr>
+        <tr><td>排除的測試替身 run</td>@for (a of arms(); track a) { <td>@if (s.arms[a].test_double_runs_excluded) { <span class="badge badge-mock">{{ s.arms[a].test_double_runs_excluded }}</span> } @else { 0 }</td> }</tr>
+        <tr><td>有值欄位正確率</td>@for (a of arms(); track a) { <td>{{ ratio(s.arms[a].scoring.valued_field_accuracy) }}</td> }</tr>
+        <tr><td>成分列正確率</td>@for (a of arms(); track a) { <td>{{ ratio(s.arms[a].scoring.ingredient_row_accuracy) }}</td> }</tr>
+        <tr><td>已評分 / 未評分文件</td>@for (a of arms(); track a) { <td>{{ s.arms[a].scoring.scored_documents }} / {{ s.arms[a].scoring.unscored_documents }}</td> }</tr>
+        <tr><td>Token（輸入 / 快取 / 輸出）</td>@for (a of arms(); track a) { <td>@if (s.arms[a].tokens.real_calls) { {{ s.arms[a].tokens.input | number }} / {{ s.arms[a].tokens.cached_input | number }} / {{ s.arms[a].tokens.output | number }} } @else { <span class="muted">無真實呼叫</span> }</td> }</tr>
+        <tr><td>模型總費用</td>@for (a of arms(); track a) { <td>
+          @if (s.arms[a].cost.status === 'measured') { {{ s.arms[a].cost.measured_amount | number: '1.4-6' }} {{ s.arms[a].cost.currency }} }
+          @else if (s.arms[a].cost.status === 'partial') { ≥ {{ s.arms[a].cost.measured_amount | number: '1.4-6' }} {{ s.arms[a].cost.currency }} <span class="badge badge-warn">部分未知</span> }
+          @else { <span class="muted">未知</span> }
+        </td> }</tr>
+        <tr><td>轉檔耗時 p50 / p95</td>@for (a of arms(); track a) { <td>{{ formatMs(s.arms[a].timings['convert_ms'].p50) }} / {{ formatMs(s.arms[a].timings['convert_ms'].p95) }}</td> }</tr>
+        <tr><td>模型耗時 p50 / p95</td>@for (a of arms(); track a) { <td>{{ formatMs(s.arms[a].timings['extract_ms'].p50) }} / {{ formatMs(s.arms[a].timings['extract_ms'].p95) }}</td> }</tr>
+        <tr><td>端到端 p50 / p95 / max</td>@for (a of arms(); track a) { <td>{{ formatMs(s.arms[a].timings['end_to_end_ms'].p50) }} / {{ formatMs(s.arms[a].timings['end_to_end_ms'].p95) }} / {{ formatMs(s.arms[a].timings['end_to_end_ms'].max) }}</td> }</tr>
+      </tbody>
+    </table>
+    <ul class="muted">
+      @for (c of s.caveats; track c) { <li>{{ c }}</li> }
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>同文件成對結果</h2>
+    <table>
+      <thead><tr><th>文件</th><th>gold</th>@for (a of arms(); track a) { <th>{{ a }}</th> }</tr></thead>
+      <tbody>
+        @for (row of matrix(); track row.document_id) {
+          <tr>
+            <td>{{ row.file_name }}</td>
+            <td>{{ row.has_gold ? '有' : '無（未評分）' }}</td>
+            @for (a of arms(); track a) {
+              <td>
+                @if (row.cells[a]; as c) {
+                  <a [routerLink]="['/jobs', c.job_id]">{{ statusLabel(c.status) }}</a>
+                  @if (c.is_test_double) { <span class="badge badge-mock">替身</span> }
+                  @else if (c.scored) { <span class="badge badge-ok">已評分</span> }
+                  @else { <span class="badge">未評分</span> }
+                } @else { <span class="muted">—</span> }
+              </td>
+            }
+          </tr>
+        } @empty {
+          <tr><td [attr.colspan]="arms().length + 2" class="muted">此實驗沒有任務</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

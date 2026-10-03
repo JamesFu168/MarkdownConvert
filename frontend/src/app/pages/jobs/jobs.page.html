@@ -1,0 +1,46 @@
+<h1>任務列表</h1>
+<div class="card">
+  <div class="inline-form">
+    <label>狀態
+      <select [(ngModel)]="status" (ngModelChange)="load(null)">
+        <option value="">全部</option>
+        @for (s of statuses; track s) {
+          <option [value]="s">{{ statusLabel(s) }}</option>
+        }
+      </select>
+    </label>
+    <button class="secondary" (click)="load(null)" [disabled]="loading()">重新整理</button>
+  </div>
+  @if (error(); as e) {
+    <div class="error-box">{{ e }}</div>
+  }
+  <table>
+    <thead>
+      <tr><th>檔名</th><th>組別</th><th>策略</th><th>模型</th><th>狀態</th><th>階段</th><th>建立時間</th><th>處理時間</th></tr>
+    </thead>
+    <tbody>
+      @for (j of items(); track j.job_id) {
+        <tr>
+          <td><a [routerLink]="['/jobs', j.job_id]">{{ j.file_name }}</a><br /><span class="muted" style="font-size: 0.75rem">{{ j.job_id }}</span></td>
+          <td>{{ j.arm }}</td>
+          <td>{{ j.latest_run?.config ? strategyLabels[j.latest_run!.config!.input_strategy] : '—' }}</td>
+          <td>
+            {{ j.latest_run?.config?.model ?? '—' }}
+            @if (j.latest_run?.config?.is_test_double) {
+              <span class="badge badge-mock">替身</span>
+            }
+          </td>
+          <td><span [class]="badgeClass(j.status)">{{ statusLabel(j.status) }}</span></td>
+          <td class="muted">{{ j.latest_run?.stage ?? '—' }}</td>
+          <td>{{ j.created_at | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ formatMs(processingMs(j)) }}</td>
+        </tr>
+      } @empty {
+        <tr><td colspan="8" class="muted">{{ loading() ? '載入中…' : '沒有任務' }}</td></tr>
+      }
+    </tbody>
+  </table>
+  @if (nextCursor()) {
+    <p><button class="secondary" (click)="load(nextCursor())" [disabled]="loading()">載入更多</button></p>
+  }
+</div>
